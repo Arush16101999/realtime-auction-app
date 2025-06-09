@@ -3,8 +3,13 @@ package com.auction.auction.service;
 import com.auction.auction.entity.Bid;
 import com.auction.auction.entity.Item;
 import com.auction.auction.enums.AuctionStatus;
+import com.auction.auction.model.BidRequestDto;
+import com.auction.auction.model.BidResponseDto;
+import com.auction.auction.model.ItemRequestDto;
+import com.auction.auction.model.ItemResponseDto;
 import com.auction.auction.repository.BidRepository;
 import com.auction.auction.repository.ItemRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,51 +29,72 @@ public class AuctionService {
         this.bidRepository = bidRepository;
     }
 
-    public Item createItem(Item item) {
-        item.setHighestBid(item.getStartingPrice());
-        return itemRepository.save(item);
+
+    public ItemResponseDto createItem(@Valid ItemRequestDto itemRequestDto) {
+        Item item = new Item();
+        item.setName(itemRequestDto.getName());
+        item.setStartingPrice(itemRequestDto.getStartingPrice());
+        item.setHighestBid(itemRequestDto.getStartingPrice());
+        item.setAuctionEndTime(itemRequestDto.getAuctionEndTime());
+        item.setStatus(AuctionStatus.OPEN);
+
+//        Item savedItem = itemRepository.save(item);
+        return mapToItemResponseDto(itemRepository.save(item));
     }
 
-    public List<Item> getAllActiveItems() {
-        return itemRepository.findByStatus(AuctionStatus.OPEN);
+
+    public List<ItemResponseDto> getAllActiveItems() {
+        List<Item> items = itemRepository.findByStatus(AuctionStatus.OPEN);
+        return items.stream()
+                .map(this::mapToItemResponseDto)
+                .toList();
     }
 
-    public Optional<Item> getItemById(Long id) {
-        return itemRepository.findById(id);
+
+    public ItemResponseDto getItemById(Long itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("Item not found."));
+        return mapToItemResponseDto(item);
     }
 
-    public Bid placeBid(Long itemId, Bid bid){
-        Optional<Item> itemOptional = itemRepository.findById(itemId);
-        if (itemOptional.isPresent()) {
-            Item item = itemOptional.get();
-            if (item.getStatus() == AuctionStatus.OPEN && bid.getAmount().compareTo(item.getHighestBid()) > 0) {
-                bid.setBidTime(LocalDateTime.now());
-                bid.setItem(item);
-                item.setHighestBid(bid.getAmount());
-                item.getBids().add(bid);
-                itemRepository.save(item);
-                return bidRepository.save(bid);
-            } else {
-                throw new IllegalArgumentException("Bid amount must be higher than the current highest bid.");
-            }
-        } else {
-            throw new IllegalArgumentException("Item not found.");
+
+
+    public BidResponseDto placeBid(Long itemId, @Valid BidRequestDto bidRequestDto) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("Item not found."));
+        if (item.getStatus() != AuctionStatus.OPEN) {
+            throw new IllegalArgumentException("Auction is not open.");
         }
+        if (bidRequestDto.getAmount().compareTo(item.getHighestBid()) <= 0) {
+            throw new IllegalArgumentException("Bid amount must be higher than the current highest bid.");
+        }
+
+        // Create a new Bid entity from the request DTO
+        Bid bid = new Bid();
+        bid.setBidderName(bidRequestDto.getBidderName());
+        bid.setAmount(bidRequestDto.getAmount());
+        bid.setBidTime(LocalDateTime.now());
+        bid.setItem(item);
+
+        // Update the item with the new bid
+        item.setHighestBid(bidRequestDto.getAmount());
+        item.getBids().add(bid);
+
+        itemRepository.save(item); // Save the item to update the highest bid and bids list
+        return mapToBidResponseDto(bid); // Save the bid and return the response DTO
     }
 
-    public Optional<Bid> getWinningBid(Long itemId) {
-//        Optional<Item> itemOptional = itemRepository.findById(itemId);
-//        if (itemOptional.isPresent()) {
-//            Item item = itemOptional.get();
-//            List<Bid> bids = bidRepository.findTopByItemOrderByAmountDesc(item);
-//            return bids.isEmpty() ? Optional.empty() : Optional.of(bids.get(0));
-//        } else {
-//            throw new IllegalArgumentException("Item not found.");
-//        }
+
+    public Optional<BidResponseDto> getWinningBid(Long itemId){
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("Item not found."));
         if (item.getStatus() == AuctionStatus.OPEN) return Optional.empty();
-        return bidRepository.findTopByItemOrderByAmountDesc(item).stream().findFirst();
+
+        return bidRepository.findTopByItemOrderByAmountDesc(item)
+                .stream()
+                .findFirst()
+                .map(this::mapToBidResponseDto);
+
     }
 
     public void closeExpiredAuctions() {
@@ -80,6 +106,27 @@ public class AuctionService {
                 itemRepository.save(item);
             }
         }
+    }
+
+    private ItemResponseDto mapToItemResponseDto(Item item) {
+        ItemResponseDto dto = new ItemResponseDto();
+        dto.setItemId(item.getItemId());
+        dto.setName(item.getName());
+        dto.setStartingPrice(item.getStartingPrice());
+        dto.setHighestBid(item.getHighestBid());
+        dto.setAuctionEndTime(item.getAuctionEndTime());
+        dto.setStatus(item.getStatus());
+        return dto;
+    }
+
+    private BidResponseDto mapToBidResponseDto(Bid bid) {
+        BidResponseDto dto = new BidResponseDto();
+        dto.setBidId(bid.getBidId());
+        dto.setBidderName(bid.getBidderName());
+        dto.setAmount(bid.getAmount());
+        dto.setBidTime(bid.getBidTime());
+        dto.setItemId(bid.getItem().getItemId()); //
+        return dto;
     }
 
 

@@ -1,9 +1,15 @@
 package com.auction.auction.controller;
 
-import com.auction.auction.entity.Bid;
-import com.auction.auction.entity.Item;
+
+import com.auction.auction.model.BidRequestDto;
+import com.auction.auction.model.BidResponseDto;
+import com.auction.auction.model.ItemRequestDto;
+import com.auction.auction.model.ItemResponseDto;
 import com.auction.auction.service.AuctionService;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,28 +26,35 @@ public class AuctionController {
         this.auctionService = auctionService;
     }
 
+    @Operation(summary = "Create Auction Item", description = "Creates a new item for auction")
     @PostMapping
-    public Item CreateItem(@RequestBody Item item) {
-        return auctionService.createItem(item);
+    public ResponseEntity<ItemResponseDto> createItem(@Valid @RequestBody ItemRequestDto itemRequestDto) {
+        ItemResponseDto itemResponseDto = auctionService.createItem(itemRequestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(itemResponseDto);
     }
 
+    @Operation(summary = "Get Active Auction Items", description = "Retrieves all currently open auction items")
     @GetMapping
-    public List<Item> getAllActiveItems() {
-        return auctionService.getAllActiveItems();
+    public ResponseEntity<List<ItemResponseDto>> getAllActiveItems() {
+        return ResponseEntity.ok(auctionService.getAllActiveItems());
     }
 
+    @Operation(summary = "Get Item Details", description = "Get details of an auction item by ID")
     @GetMapping("/{itemId}")
-    public Item getItemById(@PathVariable Long itemId) {
-        return auctionService.getItemById(itemId).orElseThrow();
+    public ResponseEntity<ItemResponseDto> getItemById(@PathVariable Long itemId) {
+        return ResponseEntity.ok(auctionService.getItemById(itemId));
     }
 
+    @Operation(summary = "Place a Bid", description = "Places a bid on an auction item")
     @PostMapping("/{itemId}/bids")
-    public Bid placeBid(@PathVariable Long itemId, @RequestBody Bid bid) {
-        return auctionService.placeBid(itemId, bid);
+    public ResponseEntity<BidResponseDto> placeBid(@PathVariable Long itemId, @RequestBody BidRequestDto bidRequestDto) {
+        BidResponseDto bidResponseDto = auctionService.placeBid(itemId, bidRequestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(bidResponseDto);
     }
 
+    @Operation(summary = "Get Winning Bid", description = "Retrieves the winning bid for a closed auction item")
     @GetMapping("/{itemId}/winner")
-    public ResponseEntity<Bid> getWinner(@PathVariable Long itemId){
+    public ResponseEntity<BidResponseDto> getWinner(@PathVariable Long itemId){
         return auctionService.getWinningBid(itemId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
