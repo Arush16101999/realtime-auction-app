@@ -1,5 +1,6 @@
 package com.auction.auction.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +21,7 @@ public class Bid {
     private LocalDateTime bidTime;
     @ManyToOne
     @JoinColumn(name = "item_id", referencedColumnName = "itemId")
+    @JsonIgnore
     private Item item;
 
 }
