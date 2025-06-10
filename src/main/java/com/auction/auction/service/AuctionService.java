@@ -3,6 +3,8 @@ package com.auction.auction.service;
 import com.auction.auction.entity.Bid;
 import com.auction.auction.entity.Item;
 import com.auction.auction.enums.AuctionStatus;
+import com.auction.auction.exception.InvalidRequestException;
+import com.auction.auction.exception.NotFoundException;
 import com.auction.auction.model.BidRequestDto;
 import com.auction.auction.model.BidResponseDto;
 import com.auction.auction.model.ItemRequestDto;
@@ -38,13 +40,16 @@ public class AuctionService {
         item.setAuctionEndTime(itemRequestDto.getAuctionEndTime());
         item.setStatus(AuctionStatus.OPEN);
 
-//        Item savedItem = itemRepository.save(item);
         return mapToItemResponseDto(itemRepository.save(item));
     }
 
 
     public List<ItemResponseDto> getAllActiveItems() {
         List<Item> items = itemRepository.findByStatus(AuctionStatus.OPEN);
+
+        if(items.isEmpty()){
+            throw new NotFoundException("No active auction items found.");
+        }
         return items.stream()
                 .map(this::mapToItemResponseDto)
                 .toList();
@@ -52,8 +57,10 @@ public class AuctionService {
 
 
     public ItemResponseDto getItemById(Long itemId) {
+        // Fetch the item by ID, throwing an exception if not found
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found."));
+                .orElseThrow(() -> new NotFoundException("Item not found with ID: " + itemId));
+
         return mapToItemResponseDto(item);
     }
 
@@ -61,12 +68,12 @@ public class AuctionService {
 
     public BidResponseDto placeBid(Long itemId, @Valid BidRequestDto bidRequestDto) {
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found."));
+                .orElseThrow(() -> new NotFoundException("Item not found with ID: " + itemId));
         if (item.getStatus() != AuctionStatus.OPEN) {
-            throw new IllegalArgumentException("Auction is not open.");
+            throw new InvalidRequestException("Cannot place a bid on a closed auction item.");
         }
         if (bidRequestDto.getAmount().compareTo(item.getHighestBid()) <= 0) {
-            throw new IllegalArgumentException("Bid amount must be higher than the current highest bid.");
+            throw new InvalidRequestException("Bid amount must be higher than the current highest bid.");
         }
 
         // Create a new Bid entity from the request DTO
@@ -87,7 +94,7 @@ public class AuctionService {
 
     public Optional<BidResponseDto> getWinningBid(Long itemId){
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found."));
+                .orElseThrow(() -> new NotFoundException("Item not found with ID: " + itemId));
         if (item.getStatus() == AuctionStatus.OPEN) return Optional.empty();
 
         return bidRepository.findTopByItemOrderByAmountDesc(item)
