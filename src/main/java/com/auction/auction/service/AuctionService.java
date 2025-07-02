@@ -31,7 +31,7 @@ public class AuctionService {
         this.bidRepository = bidRepository;
     }
 
-
+    // Method to create a new auction item
     public ItemResponseDto createItem(@Valid ItemRequestDto itemRequestDto) {
         Item item = new Item();
         item.setName(itemRequestDto.getName());
@@ -43,7 +43,7 @@ public class AuctionService {
         return mapToItemResponseDto(itemRepository.save(item));
     }
 
-
+    // Method to retrieve all active auction items
     public List<ItemResponseDto> getAllActiveItems() {
         List<Item> items = itemRepository.findByStatus(AuctionStatus.OPEN);
 
@@ -55,7 +55,7 @@ public class AuctionService {
                 .toList();
     }
 
-
+    // Method to retrieve an auction item by its ID
     public ItemResponseDto getItemById(Long itemId) {
         // Fetch the item by ID, throwing an exception if not found
         Item item = itemRepository.findById(itemId)
@@ -64,8 +64,18 @@ public class AuctionService {
         return mapToItemResponseDto(item);
     }
 
+    // Get all bids
+    public List<BidResponseDto> getAllBids() {
+        List<Bid> bids = bidRepository.findAll();
+        if (bids.isEmpty()) {
+            throw new NotFoundException("No bids found.");
+        }
+        return bids.stream()
+                .map(this::mapToBidResponseDto)
+                .toList();
+    }
 
-
+    // Method to place a bid on an auction item
     public BidResponseDto placeBid(Long itemId, @Valid BidRequestDto bidRequestDto) {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with ID: " + itemId));
@@ -88,10 +98,11 @@ public class AuctionService {
         item.getBids().add(bid);
 
         itemRepository.save(item); // Save the item to update the highest bid and bids list
-        return mapToBidResponseDto(bid); // Save the bid and return the response DTO
+        Bid savedBid = item.getBids().get(item.getBids().size()-1); // Get the last added bid
+        return mapToBidResponseDto(savedBid); // Save the bid and return the response DTO
     }
 
-
+    // Method to retrieve the winning bid for a closed auction item
     public Optional<BidResponseDto> getWinningBid(Long itemId){
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Item not found with ID: " + itemId));
@@ -103,7 +114,7 @@ public class AuctionService {
                 .map(this::mapToBidResponseDto);
 
     }
-
+    // Method to close expired auctions
     public void closeExpiredAuctions() {
         LocalDateTime now = LocalDateTime.now();
         List<Item> items = itemRepository.findByStatus(AuctionStatus.OPEN);
@@ -114,7 +125,7 @@ public class AuctionService {
             }
         }
     }
-
+    // map entities to DTOs
     private ItemResponseDto mapToItemResponseDto(Item item) {
         ItemResponseDto dto = new ItemResponseDto();
         dto.setItemId(item.getItemId());

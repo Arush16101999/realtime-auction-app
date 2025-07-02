@@ -25,7 +25,7 @@ public class Item {
     private LocalDateTime auctionEndTime;
     @Enumerated(EnumType.STRING)
     private AuctionStatus status = AuctionStatus.OPEN;
-    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true) // cascade all operations to bids to prevent double persistence
     private List<Bid> bids = new ArrayList<>();
 
 

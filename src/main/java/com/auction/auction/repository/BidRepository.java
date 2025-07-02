@@ -9,4 +9,6 @@ import java.util.List;
 public interface BidRepository extends JpaRepository<Bid, Long> {
     // find top bid for an item
     List<Bid> findTopByItemOrderByAmountDesc(Item item);
+
+
 }

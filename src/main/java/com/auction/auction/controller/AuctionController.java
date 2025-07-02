@@ -52,6 +52,12 @@ public class AuctionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bidResponseDto);
     }
 
+    @Operation(summary = "Get Bids", description = "Retrieves all bids")
+    @GetMapping("/bids")
+    public ResponseEntity<List<BidResponseDto>> getAllBids() {
+        return ResponseEntity.ok(auctionService.getAllBids());
+    }
+
     @Operation(summary = "Get Winning Bid", description = "Retrieves the winning bid for a closed auction item")
     @GetMapping("/{itemId}/winner")
     public ResponseEntity<BidResponseDto> getWinner(@PathVariable Long itemId){
